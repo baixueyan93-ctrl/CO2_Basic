@@ -87,7 +87,7 @@ static void exv_dbg_hold(uint32_t total_sec)
     char buf[80];
 
     snprintf(buf, sizeof(buf),
-             "[EXV-DBG] HOLD %lus  ** TOUCH COIL NOW — SHOULD BE COLD **\r\n",
+             "[EXV-DBG] HOLD %lus  ** TOUCH COIL NOW -- SHOULD BE COLD **\r\n",
              (unsigned long)total_sec);
     BSP_RS485_SendString(buf);
 
