@@ -60,8 +60,10 @@ co2_vet6_base\freertos.o: ..\APP\task_adc.h
 co2_vet6_base\freertos.o: ..\APP\task_sht30.h
 co2_vet6_base\freertos.o: ..\BSP\bsp_sht30.h
 co2_vet6_base\freertos.o: ..\APP\task_simple_main.h
+co2_vet6_base\freertos.o: ..\APP\task_exv.h
 co2_vet6_base\freertos.o: ..\BSP\bsp_i2c_mutex.h
 co2_vet6_base\freertos.o: ..\BSP\bsp_relay.h
 co2_vet6_base\freertos.o: ..\BSP\bsp_exv.h
 co2_vet6_base\freertos.o: ..\BSP\bsp_inverter.h
 co2_vet6_base\freertos.o: ..\Config\sys_state.h
+co2_vet6_base\freertos.o: ..\Config\sys_config.h

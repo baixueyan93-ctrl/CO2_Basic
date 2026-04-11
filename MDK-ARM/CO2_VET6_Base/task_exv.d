@@ -49,3 +49,6 @@ co2_vet6_base\task_exv.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rtc_
 co2_vet6_base\task_exv.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 co2_vet6_base\task_exv.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 co2_vet6_base\task_exv.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
+co2_vet6_base\task_exv.o: ..\BSP\bsp_rs485.h
+co2_vet6_base\task_exv.o: ..\Config\sys_config.h
+co2_vet6_base\task_exv.o: D:\MDK534\ARM\ARMCC\Bin\..\include\stdio.h
