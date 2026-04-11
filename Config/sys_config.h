@@ -155,6 +155,26 @@ typedef struct {
 #define SIMPLE_GEAR_RUN_HIGH    1          /* '1' 160Hz (2400 rpm)          */
 #define SIMPLE_GEAR_DEFROST     2          /* '2' 240Hz (3600 rpm)          */
 
+/* ===================================================================
+ *  电子膨胀阀 (EXV) 发热调试模式
+ *
+ *  EXV_DEBUG_ONLY = 1
+ *    — 只运行 Task_EXV (见 APP/task_exv.c) + LED + RS485 调试串口.
+ *    — 主状态机 Task_SimpleMain 不创建, 不发压缩机指令, 不动继电器.
+ *    — freertos.c 上电阶段的 560 步关零也会被跳过, 改由 Task_EXV
+ *      在调度器启动后自己执行 (避免在没有调度器的阶段调用 vTaskDelay).
+ *    — 其它任务 (Panel/ADC/SHT30) 仍然会被创建, 它们不触碰 EXV, 不影响
+ *      本次发热测量, 屏幕还能显示柜温.
+ *  EXV_DEBUG_ONLY = 0
+ *    — 正常运行模式.
+ *
+ *  使用方法: 把下面一行改成 1 → 重新编译烧录 → 接 RS485 调试口看日志,
+ *  每一段 "HOLD" 阶段用手摸膨胀阀线圈壳, 正常应为冷态.
+ * =================================================================== */
+#define EXV_DEBUG_ONLY          1          /* 0=正常, 1=只调试膨胀阀       */
+
+#define EXV_DEBUG_HOLD_SEC      30         /* 每次动作后保持时间 (秒)      */
+
 #endif /* SYS_CONFIG_H */
 
 

@@ -34,11 +34,13 @@
 #include "task_adc.h"          /* ADC 采集任务 (NTC温度+压力) */
 #include "task_sht30.h"        /* SHT30 温湿度采集任务 */
 #include "task_simple_main.h"  /* 简化测试版主状态机 (替代 TempCtrl/Defrost/EvapFan/FreqExv/CondFan/TimerSvc) */
+#include "task_exv.h"          /* EXV 发热调试任务 (EXV_DEBUG_ONLY 模式下启用) */
 #include "bsp_i2c_mutex.h"     /* I2C1 总线互斥锁 */
 #include "bsp_relay.h"         /* 6路继电器驱动 */
 #include "bsp_exv.h"           /* 电子膨胀阀驱动 */
 #include "bsp_inverter.h"      /* 变频器 ASCII 驱动 */
 #include "sys_state.h"         /* 系统状态全局变量 */
+#include "sys_config.h"        /* EXV_DEBUG_ONLY 编译开关 */
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,6 +68,7 @@ osThreadId TaskPanelHandle;
 osThreadId Task_ADCHandle;
 osThreadId Task_SHT30Handle;
 osThreadId Task_SimpleMainHandle;
+osThreadId Task_EXVHandle;
 osMutexId EEPROM_MutexHandle;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,6 +82,7 @@ void StartTask03(void const * argument);
 void StartTask_ADC(void const * argument);
 void StartTask_SHT30(void const * argument);
 void StartTask_SimpleMain(void const * argument);
+void StartTask_EXV(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -125,8 +129,12 @@ void MX_FREERTOS_Init(void) {
   BSP_I2C1_MutexInit();  /* 优先初始化硬件互斥锁 */
   BSP_Relay_Init();      /* 继电器GPIO初始化, 上电默认全部OFF */
   /* BSP_Inverter_Init() 已由 main.c 在 MX_UART4_Init() 之后调用 */
-  BSP_EXV_Init();        /* 膨胀阀GPIO初始化 */
-  BSP_EXV_ResetToZero(); /* 膨胀阀 560 步无记忆冷启动归零 */
+  BSP_EXV_Init();        /* 膨胀阀GPIO初始化 (只初始化 GPIO, 不涉及 vTaskDelay) */
+#if !EXV_DEBUG_ONLY
+  /* 正常模式: 在调度器启动前做 560 步无记忆冷启动归零.
+   * EXV 调试模式下跳过, 由 Task_EXV 在调度器运行后执行, 更安全. */
+  BSP_EXV_ResetToZero();
+#endif
   SysState_Init();       /* 在任务启动前初始化全局变量和系统锁 */
   /* USER CODE END RTOS_MUTEX */
 
@@ -165,6 +173,20 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
 
+#if EXV_DEBUG_ONLY
+  /* ============================================================================
+   * EXV 发热调试模式 (sys_config.h: EXV_DEBUG_ONLY = 1)
+   *
+   * 只创建 Task_EXV, 它会反复执行 "开 — 保持 — 关 — 保持" 的循环,
+   * 每次动作后立即断电线圈, 并通过 RS485 调试串口打印 GPIO 电平和
+   * 倒计时. 工程师可在每次 HOLD 阶段用手触摸膨胀阀线圈壳, 判断断电
+   * 逻辑是否生效, 是否还有发热.
+   *
+   * 此模式下: 不创建 Task_SimpleMain, 不发压缩机指令, 不动继电器.
+   * ============================================================================ */
+  osThreadDef(Task_EXV, StartTask_EXV, osPriorityNormal, 0, 512);
+  Task_EXVHandle = osThreadCreate(osThread(Task_EXV), NULL);
+#else
   /* ============================================================================
    * 简化测试版主状态机任务 (task_simple_main)
    *
@@ -181,6 +203,7 @@ void MX_FREERTOS_Init(void) {
    * ============================================================================ */
   osThreadDef(Task_SimpleMain, StartTask_SimpleMain, osPriorityNormal, 0, 1024);
   Task_SimpleMainHandle = osThreadCreate(osThread(Task_SimpleMain), NULL);
+#endif
 
   /* USER CODE END RTOS_THREADS */
 
@@ -275,6 +298,13 @@ void StartTask_SHT30(void const * argument)
 void StartTask_SimpleMain(void const * argument)
 {
   Task_SimpleMain_Process(argument);
+  for(;;) { osDelay(1); }  /* 安全兜底 */
+}
+
+/* ===== EXV 发热调试任务入口 (EXV_DEBUG_ONLY=1 时启用) ===== */
+void StartTask_EXV(void const * argument)
+{
+  Task_EXV_Process(argument);
   for(;;) { osDelay(1); }  /* 安全兜底 */
 }
 
