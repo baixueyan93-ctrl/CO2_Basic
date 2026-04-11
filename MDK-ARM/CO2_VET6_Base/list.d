@@ -1,0 +1,12 @@
+co2_vet6_base\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/list.c
+co2_vet6_base\list.o: D:\MDK534\ARM\ARMCC\Bin\..\include\stdlib.h
+co2_vet6_base\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+co2_vet6_base\list.o: D:\MDK534\ARM\ARMCC\Bin\..\include\stddef.h
+co2_vet6_base\list.o: D:\MDK534\ARM\ARMCC\Bin\..\include\stdint.h
+co2_vet6_base\list.o: ../Core/Inc/FreeRTOSConfig.h
+co2_vet6_base\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+co2_vet6_base\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+co2_vet6_base\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+co2_vet6_base\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+co2_vet6_base\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+co2_vet6_base\list.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
