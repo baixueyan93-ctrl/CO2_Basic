@@ -190,7 +190,7 @@ void Task_ADC_Process(void const *argument) {
     vTaskDelay(pdMS_TO_TICKS(500));
 
     for(;;) {
-        /* 1. 转换全部5路温度 */
+        /* 1. 转换全部6路NTC温度 (4x10K + 2x50K) */
         int16_t t_inui4 = adc_to_temperature_10k(adc_buffer[0]);  /* INUI4 PC3 10K 压缩机进口 */
         int16_t t_inui5 = adc_to_temperature_50k(adc_buffer[1]);  /* INUI5 PC2 50K 压缩机出口/气冷器进口 */
         int16_t t_inui0 = adc_to_temperature_10k(adc_buffer[2]);  /* INUI0 PA3 10K 蒸发器进口 */

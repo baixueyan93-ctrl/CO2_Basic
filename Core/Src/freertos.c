@@ -242,7 +242,7 @@ void StartTask03(void const * argument)
 void StartTask_ADC(void const * argument)
 {
   /* USER CODE BEGIN StartTask_ADC */
-  Task_ADC_Process(argument);  /* ADC采集: 5路NTC + 2路压力 */
+  Task_ADC_Process(argument);  /* ADC采集: 6路NTC + 2路压力 */
   for(;;)
   {
     osDelay(1);
