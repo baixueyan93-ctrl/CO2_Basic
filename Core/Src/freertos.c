@@ -152,7 +152,7 @@ void MX_FREERTOS_Init(void) {
   Task_RS485Handle = osThreadCreate(osThread(Task_RS485), NULL);
 
   /* definition and creation of TaskPanel */
-  osThreadDef(TaskPanel, StartTask03, osPriorityBelowNormal, 0, 512);
+  osThreadDef(TaskPanel, StartTask03, osPriorityNormal, 0, 512);
   TaskPanelHandle = osThreadCreate(osThread(TaskPanel), NULL);
 
   /* definition and creation of Task_ADC */
