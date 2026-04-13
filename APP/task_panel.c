@@ -57,10 +57,12 @@ static void Panel_SaveSetTemp(void)
 /* ===========================================================================
  * 双面板任务
  *
- * PANEL0 (PB6/PB7): 显示温度+图标 + 4按键 (Reset/Set/上/下)
- * PANEL1 (PB4/PB5): 显示温度+图标 + 4按键 (除霜/照明/点检/电源)
+ * 两块屏硬件一模一样, 按键都在 TM1637 K1 扫描线上 (码值 0xF7/F6/F5/F4)
  *
- * 两块屏显示内容相同: 正常模式显示SHT30温度, 设置模式显示设定温度
+ * PANEL0 (PB6/PB7): 显示温度+图标 + 4按键 (Reset/↓减温/↑加温/Set)
+ * PANEL1 (PB4/PB5): 显示温度+图标 + 4按键 (电源/除霜/照明/预留)
+ *
+ * 两块屏显示内容相同: 正常模式显示 NTC 柜温, 设置模式显示设定温度
  * 图标也相同: 除霜/风扇/制冷/加热/灯光等
  * =========================================================================== */
 void Task_Panel_Process(void const *argument)
@@ -143,32 +145,18 @@ void Task_Panel_Process(void const *argument)
                 if (g_set_temp < -50.0f) g_set_temp = -50.0f;
                 Panel_SaveSetTemp();
             }
-            vTaskDelay(pdMS_TO_TICKS(150));  /* 消抖 */
+            vTaskDelay(pdMS_TO_TICKS(150));
         }
 
         /* ============================================
-         * PANEL1 按键: 除霜 / 照明 / 点检 / 电源
+         * PANEL1 按键: 电源 / 除霜 / 照明 / 点检
+         * 两块屏硬件一样, 键码都是 K1 线 (0xF7/F6/F5/F4)
          * ============================================ */
         uint8_t key1 = HTC2K_ReadKeys1();
 
         if (key1 != 0x00 && key1 != 0xFF) {
-            /* 诊断: 无论读到什么码值, 先切一下照明继电器听响
-             * 确认 PANEL1 按键扫描是否能读到数据 (调试后删除) */
-            g_light_on = !g_light_on;
-            BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
-
-            if (key1 == KEY_CODE_DEFROST) {
-                g_defrost_req = 1;
-                BSP_RS485_SendString("[KEY] DEFROST req\r\n");
-            }
-            else if (key1 == KEY_CODE_LIGHT) {
-                g_light_on = !g_light_on;
-                BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
-            }
-            else if (key1 == KEY_CODE_INSPECT) {
-                /* 点检键: 预留 */
-            }
-            else if (key1 == KEY_CODE_POWER) {
+            if (key1 == KEY_CODE_RST) {
+                /* 按键1: 电源 ON/OFF */
                 g_system_on = !g_system_on;
                 if (g_system_on) {
                     BSP_RS485_SendString("[KEY] Power ON req\r\n");
@@ -176,7 +164,20 @@ void Task_Panel_Process(void const *argument)
                     BSP_RS485_SendString("[KEY] Power OFF req\r\n");
                 }
             }
-            vTaskDelay(pdMS_TO_TICKS(150));  /* 消抖 */
+            else if (key1 == KEY_CODE_DOWN) {
+                /* 按键2: 除霜 */
+                g_defrost_req = 1;
+                BSP_RS485_SendString("[KEY] DEFROST req\r\n");
+            }
+            else if (key1 == KEY_CODE_UP) {
+                /* 按键3: 照明 */
+                g_light_on = !g_light_on;
+                BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
+            }
+            else if (key1 == KEY_CODE_SET) {
+                /* 按键4: 预留 */
+            }
+            vTaskDelay(pdMS_TO_TICKS(150));
         }
 
         /* 5秒无操作自动退出设置模式 */
