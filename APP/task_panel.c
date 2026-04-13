@@ -67,14 +67,11 @@ void Task_Panel_Process(void const *argument)
 {
     (void)argument;
     uint8_t blink_cnt = 0;
-    uint32_t dbg_cnt = 0;   /* 按键诊断计数器 */
 
     /* 初始化两个面板 */
     HTC2K_Init();   /* PANEL0 (PB6/PB7) */
     HTC2K_Init1();  /* PANEL1 (PB4/PB5) */
     vTaskDelay(pdMS_TO_TICKS(200));
-
-    BSP_RS485_SendString("[PANEL] Task started OK\r\n");
 
     /* 从EEPROM读取上次设定温度, 读不到则保持默认 SET_TEMP_TS */
     Panel_LoadSetTemp();
@@ -128,71 +125,45 @@ void Task_Panel_Process(void const *argument)
          * PANEL0 按键: Reset / Set / 上 / 下
          * ============================================ */
         uint8_t key0 = HTC2K_ReadKeys();
-        uint8_t key1_raw = HTC2K_ReadKeys1();  /* 提前读一次用于诊断 */
-
-        /* 每 2 秒打印一次原始按键扫描值 (调试用, 稳定后删除) */
-        dbg_cnt++;
-        if (dbg_cnt >= 40) {  /* 40 × 50ms = 2s */
-            dbg_cnt = 0;
-            char kbuf[80];
-            snprintf(kbuf, sizeof(kbuf),
-                     "[PANEL] key0=0x%02X key1=0x%02X\r\n",
-                     (unsigned)key0, (unsigned)key1_raw);
-            BSP_RS485_SendString(kbuf);
-        }
 
         if (key0 != 0x00 && key0 != 0xFF) {
             if (key0 == KEY_CODE_RST) {
-                /* 复位: 退出设置模式, 恢复默认温度 */
                 g_panel_mode = 0;
-                g_set_temp = SET_TEMP_TS;  /* 恢复默认温度 */
-                Panel_SaveSetTemp();       /* 保存到EEPROM */
+                g_set_temp = SET_TEMP_TS;
+                Panel_SaveSetTemp();
             }
             else if (key0 == KEY_CODE_SET) {
-                /* 切换设置模式 */
                 g_panel_mode = !g_panel_mode;
                 s_set_mode_tick = xTaskGetTickCount();
             }
             else if (g_panel_mode == 1) {
-                /* 设置模式下: 上/下调温 */
                 if (key0 == KEY_CODE_UP)   { g_set_temp += 0.5f; s_set_mode_tick = xTaskGetTickCount(); }
                 if (key0 == KEY_CODE_DOWN) { g_set_temp -= 0.5f; s_set_mode_tick = xTaskGetTickCount(); }
                 if (g_set_temp > 50.0f)  g_set_temp = 50.0f;
                 if (g_set_temp < -50.0f) g_set_temp = -50.0f;
-                Panel_SaveSetTemp();  /* 每次调温后保存到EEPROM */
+                Panel_SaveSetTemp();
             }
-            /* 简化版: 正常模式下的上/下键屏蔽, 避免误操作变频板 */
             vTaskDelay(pdMS_TO_TICKS(150));  /* 消抖 */
         }
 
         /* ============================================
          * PANEL1 按键: 除霜 / 照明 / 点检 / 电源
          * ============================================ */
-        uint8_t key1 = key1_raw;  /* 用前面已读取的值, 避免重复读 */
+        uint8_t key1 = HTC2K_ReadKeys1();
 
         if (key1 != 0x00 && key1 != 0xFF) {
             if (key1 == KEY_CODE_DEFROST) {
-                /* 一键除霜:
-                 *   panel 仅置位 g_defrost_req, 由 task_simple_main 处理.
-                 *   RUN 状态按下 → 进入除霜
-                 *   DEFROST_RUN/DRIP 状态按下 → 取消除霜回 RUN_LOW
-                 *   POWER_OFF 状态按下 → simple_main 会自动清零, 忽略. */
                 g_defrost_req = 1;
                 BSP_RS485_SendString("[KEY] DEFROST req\r\n");
             }
             else if (key1 == KEY_CODE_LIGHT) {
-                /* 照明开关 */
                 g_light_on = !g_light_on;
                 BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
             }
             else if (key1 == KEY_CODE_INSPECT) {
-                /* 点检键: 预留, 后续进入日志模式 */
+                /* 点检键: 预留 */
             }
             else if (key1 == KEY_CODE_POWER) {
-                /* 电源开关 (toggle)
-                 *   panel 仅做 "用户意图" 标志, 实际状态机由 task_simple_main 推进.
-                 *   关机 → simple_main 会发 'S' + 关风扇 + 启动 3min 冷却
-                 *   开机 → simple_main 会检查冷却是否结束, 然后进 SELFTEST */
                 g_system_on = !g_system_on;
                 if (g_system_on) {
                     BSP_RS485_SendString("[KEY] Power ON req\r\n");
