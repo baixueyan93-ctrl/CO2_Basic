@@ -122,17 +122,11 @@ void Task_Panel_Process(void const *argument)
         }
 
         /* ============================================
-         * 所有 8 个按键统一从 PANEL0 (PB6/PB7) 读取
-         *
-         * 原因: PANEL1 (PB4/PB5) 显示正常但按键扫描读不到
-         *       PB4=NJTRST(JTAG) 可能影响 TM1637 读回操作.
-         *       两块屏硬件一样, 按键矩阵 K1+K2 都在同一个
-         *       TM1637 芯片上, 一次 ReadKeys 能读到全部 8 键.
+         * PANEL0 按键: Reset / Set / 上 / 下
          * ============================================ */
         uint8_t key0 = HTC2K_ReadKeys();
 
         if (key0 != 0x00 && key0 != 0xFF) {
-            /* --- K1 线按键: Reset / Set / 上 / 下 --- */
             if (key0 == KEY_CODE_RST) {
                 g_panel_mode = 0;
                 g_set_temp = SET_TEMP_TS;
@@ -142,31 +136,34 @@ void Task_Panel_Process(void const *argument)
                 g_panel_mode = !g_panel_mode;
                 s_set_mode_tick = xTaskGetTickCount();
             }
-            else if (key0 == KEY_CODE_UP && g_panel_mode == 1) {
-                g_set_temp += 0.5f;
-                s_set_mode_tick = xTaskGetTickCount();
-                if (g_set_temp > 50.0f) g_set_temp = 50.0f;
-                Panel_SaveSetTemp();
-            }
-            else if (key0 == KEY_CODE_DOWN && g_panel_mode == 1) {
-                g_set_temp -= 0.5f;
-                s_set_mode_tick = xTaskGetTickCount();
+            else if (g_panel_mode == 1) {
+                if (key0 == KEY_CODE_UP)   { g_set_temp += 0.5f; s_set_mode_tick = xTaskGetTickCount(); }
+                if (key0 == KEY_CODE_DOWN) { g_set_temp -= 0.5f; s_set_mode_tick = xTaskGetTickCount(); }
+                if (g_set_temp > 50.0f)  g_set_temp = 50.0f;
                 if (g_set_temp < -50.0f) g_set_temp = -50.0f;
                 Panel_SaveSetTemp();
             }
-            /* --- K2 线按键: 除霜 / 照明 / 点检 / 电源 --- */
-            else if (key0 == KEY_CODE_DEFROST) {
+            vTaskDelay(pdMS_TO_TICKS(150));  /* 消抖 */
+        }
+
+        /* ============================================
+         * PANEL1 按键: 除霜 / 照明 / 点检 / 电源
+         * ============================================ */
+        uint8_t key1 = HTC2K_ReadKeys1();
+
+        if (key1 != 0x00 && key1 != 0xFF) {
+            if (key1 == KEY_CODE_DEFROST) {
                 g_defrost_req = 1;
                 BSP_RS485_SendString("[KEY] DEFROST req\r\n");
             }
-            else if (key0 == KEY_CODE_LIGHT) {
+            else if (key1 == KEY_CODE_LIGHT) {
                 g_light_on = !g_light_on;
                 BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
             }
-            else if (key0 == KEY_CODE_INSPECT) {
+            else if (key1 == KEY_CODE_INSPECT) {
                 /* 点检键: 预留 */
             }
-            else if (key0 == KEY_CODE_POWER) {
+            else if (key1 == KEY_CODE_POWER) {
                 g_system_on = !g_system_on;
                 if (g_system_on) {
                     BSP_RS485_SendString("[KEY] Power ON req\r\n");

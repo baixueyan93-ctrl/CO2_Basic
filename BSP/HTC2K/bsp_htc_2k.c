@@ -200,7 +200,15 @@ uint8_t HTC2K_ReadKeys1(void) {
     TM1_Start();
     TM1_WriteByte(0x42);
     TM1_Ask();
-    HTC1_DIO(1);
+
+    /* PB5(DIO) 切成输入模式, 让 TM1637 驱动数据线.
+     * PB4 是 JTAG NJTRST 引脚, 开漏模式下 GPIO 读回可能异常,
+     * 显式切输入模式可确保 IDR 寄存器正确反映引脚电平. */
+    GPIO_InitTypeDef gpio_in = {0};
+    gpio_in.Pin  = HTC1_DIO_PIN;
+    gpio_in.Mode = GPIO_MODE_INPUT;
+    gpio_in.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(HTC1_DIO_PORT, &gpio_in);
 
     for (uint8_t i = 0; i < 8; i++) {
         HTC1_CLK(0);
@@ -210,6 +218,12 @@ uint8_t HTC2K_ReadKeys1(void) {
         if (HTC1_READ_DIO()) rekey |= 0x80;
         TM1637_DelayUs(20);
     }
+
+    /* 切回开漏输出 (恢复正常 TM1637 写模式) */
+    gpio_in.Mode = GPIO_MODE_OUTPUT_OD;
+    HAL_GPIO_Init(HTC1_DIO_PORT, &gpio_in);
+    HTC1_DIO(1);
+
     TM1_Ask();
     TM1_Stop();
     return rekey;
