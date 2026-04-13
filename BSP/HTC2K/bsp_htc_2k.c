@@ -187,18 +187,6 @@ void HTC2K_ShowTemp(float temp) {
 void HTC2K_Init1(void) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     HTC1_CLK_ENABLE();
-
-    /* PB4 上电默认是 JTAG NJTRST (AF0), HAL_GPIO_Init 设成 GPIO 输出
-     * 时不会清 AF 寄存器, JTAG 控制器可能仍在干扰该引脚.
-     * 先把 PB4 切到 AF1 (断开 JTAG), 再切回 GPIO 开漏输出. */
-    GPIO_InitStruct.Pin       = HTC1_CLK_PIN;      /* PB4 */
-    GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
-    GPIO_InitStruct.Pull      = GPIO_PULLUP;
-    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;      /* 任意非 AF0 */
-    HAL_GPIO_Init(HTC1_CLK_PORT, &GPIO_InitStruct);
-
-    /* PB4+PB5 统一配置为开漏输出 (PB4 的 AFR 已经不再是 JTAG) */
     GPIO_InitStruct.Pin   = HTC1_CLK_PIN | HTC1_DIO_PIN;
     GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
     GPIO_InitStruct.Pull  = GPIO_PULLUP;
@@ -211,28 +199,17 @@ uint8_t HTC2K_ReadKeys1(void) {
     uint8_t rekey = 0;
     TM1_Start();
     TM1_WriteByte(0x42);
+    TM1_Ask();
+    HTC1_DIO(1);
 
-    /* 先释放 DIO, 再给 ACK 时钟 (让 TM1637 有时间接管 DIO 线)
-     * PB4(CLK) 是 JTAG NJTRST 引脚, 边沿可能比 PB6 慢,
-     * 所以用更长的延时确保 TM1637 能正确同步 */
-    HTC1_DIO(1);                 /* 释放 DIO */
-    TM1637_DelayUs(50);
-
-    /* ACK 时钟 (加长延时) */
-    HTC1_CLK(0); TM1637_DelayUs(50);
-    HTC1_CLK(1); TM1637_DelayUs(50);
-    HTC1_CLK(0); TM1637_DelayUs(50);
-
-    /* 读 8 位键值 (加长延时) */
     for (uint8_t i = 0; i < 8; i++) {
         HTC1_CLK(0);
         rekey >>= 1;
-        TM1637_DelayUs(50);
+        TM1637_DelayUs(10);
         HTC1_CLK(1);
         if (HTC1_READ_DIO()) rekey |= 0x80;
-        TM1637_DelayUs(50);
+        TM1637_DelayUs(20);
     }
-
     TM1_Ask();
     TM1_Stop();
     return rekey;
