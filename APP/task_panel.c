@@ -152,6 +152,11 @@ void Task_Panel_Process(void const *argument)
         uint8_t key1 = HTC2K_ReadKeys1();
 
         if (key1 != 0x00 && key1 != 0xFF) {
+            /* 诊断: 无论读到什么码值, 先切一下照明继电器听响
+             * 确认 PANEL1 按键扫描是否能读到数据 (调试后删除) */
+            g_light_on = !g_light_on;
+            BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
+
             if (key1 == KEY_CODE_DEFROST) {
                 g_defrost_req = 1;
                 BSP_RS485_SendString("[KEY] DEFROST req\r\n");
