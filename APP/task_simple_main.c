@@ -351,8 +351,10 @@ void Task_SimpleMain_Process(void const *argument)
     /* 等 ADC/Panel/Relay 等任务启动就绪 */
     vTaskDelay(pdMS_TO_TICKS(2000));
 
-    /* EXV 已经在 MX_FREERTOS_Init 里做过 560 步关零,
-     * 这里不再做, 避免机械磨损 (当前位置 = 0) */
+    /* 560 步无记忆冷启动关零 (必须在调度器启动后执行, vTaskDelay 才生效) */
+    BSP_RS485_SendString("[SM] EXV cold reset 560 steps...\r\n");
+    BSP_EXV_ResetToZero();
+    BSP_RS485_SendString("[SM] EXV reset done, de-energized\r\n");
 
     /* 初始状态 */
     s_state          = SM_POWER_OFF;
