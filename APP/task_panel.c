@@ -67,11 +67,14 @@ void Task_Panel_Process(void const *argument)
 {
     (void)argument;
     uint8_t blink_cnt = 0;
+    uint32_t dbg_cnt = 0;   /* 按键诊断计数器 */
 
     /* 初始化两个面板 */
     HTC2K_Init();   /* PANEL0 (PB6/PB7) */
     HTC2K_Init1();  /* PANEL1 (PB4/PB5) */
     vTaskDelay(pdMS_TO_TICKS(200));
+
+    BSP_RS485_SendString("[PANEL] Task started OK\r\n");
 
     /* 从EEPROM读取上次设定温度, 读不到则保持默认 SET_TEMP_TS */
     Panel_LoadSetTemp();
@@ -125,6 +128,18 @@ void Task_Panel_Process(void const *argument)
          * PANEL0 按键: Reset / Set / 上 / 下
          * ============================================ */
         uint8_t key0 = HTC2K_ReadKeys();
+        uint8_t key1_raw = HTC2K_ReadKeys1();  /* 提前读一次用于诊断 */
+
+        /* 每 2 秒打印一次原始按键扫描值 (调试用, 稳定后删除) */
+        dbg_cnt++;
+        if (dbg_cnt >= 40) {  /* 40 × 50ms = 2s */
+            dbg_cnt = 0;
+            char kbuf[80];
+            snprintf(kbuf, sizeof(kbuf),
+                     "[PANEL] key0=0x%02X key1=0x%02X\r\n",
+                     (unsigned)key0, (unsigned)key1_raw);
+            BSP_RS485_SendString(kbuf);
+        }
 
         if (key0 != 0x00 && key0 != 0xFF) {
             if (key0 == KEY_CODE_RST) {
@@ -153,7 +168,7 @@ void Task_Panel_Process(void const *argument)
         /* ============================================
          * PANEL1 按键: 除霜 / 照明 / 点检 / 电源
          * ============================================ */
-        uint8_t key1 = HTC2K_ReadKeys1();
+        uint8_t key1 = key1_raw;  /* 用前面已读取的值, 避免重复读 */
 
         if (key1 != 0x00 && key1 != 0xFF) {
             if (key1 == KEY_CODE_DEFROST) {
