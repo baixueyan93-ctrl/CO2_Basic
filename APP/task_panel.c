@@ -76,30 +76,7 @@ void Task_Panel_Process(void const *argument)
     /* 从EEPROM读取上次设定温度, 读不到则保持默认 SET_TEMP_TS */
     Panel_LoadSetTemp();
 
-    /* ============ PANEL1 最小化隔离测试 (调试后删除) ============
-     * 只读 PANEL1 按键, 不刷屏不干别的.
-     * 读到任何非 0x00/0xFF 的值 → 切照明继电器 (咔哒响)
-     * 同时把读到的值显示在 PANEL0 屏幕上.
-     * ==========================================================*/
     for (;;) {
-        uint8_t raw = HTC2K_ReadKeys1();
-
-        if (raw != 0x00 && raw != 0xFF) {
-            /* 听到咔哒 = 读到了 */
-            g_light_on = !g_light_on;
-            BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
-            /* 在左屏显示读到的原始码值 */
-            HTC2K_ShowTemp((float)raw);
-            vTaskDelay(pdMS_TO_TICKS(500));
-        }
-
-        /* 没读到时, 左屏显示 88.8 表示正在扫描 */
-        HTC2K_ShowTemp(88.8f);
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-
-    /* ============ 正常代码 (测试完成后恢复此行上面的 for 循环) ============ */
-    for (;;) { /* 正常代码不会执行到这里 */
         /* 读取系统状态 */
         SysVarData_t sensor;
         SysState_GetSensor(&sensor);
@@ -145,53 +122,21 @@ void Task_Panel_Process(void const *argument)
         }
 
         /* ============================================
-         * PANEL0 按键: Reset / Set / 上 / 下
+         * 4 按键统一从 PANEL0 读取 (两块屏硬件一样,
+         * 按键码都是 K1 线: 0xF7/F6/F5/F4)
+         *
+         * 按键分配:
+         *   按键1 (0xF7) = 电源 ON/OFF
+         *   按键2 (0xF6) = 除霜 (运行中手动除霜/取消)
+         *   按键3 (0xF5) = ↑ 调温 (设置模式) / 照明 (正常模式)
+         *   按键4 (0xF4) = Set 进/出温度设置模式
          * ============================================ */
         uint8_t key0 = HTC2K_ReadKeys();
 
         if (key0 != 0x00 && key0 != 0xFF) {
+
             if (key0 == KEY_CODE_RST) {
-                g_panel_mode = 0;
-                g_set_temp = SET_TEMP_TS;
-                Panel_SaveSetTemp();
-            }
-            else if (key0 == KEY_CODE_SET) {
-                g_panel_mode = !g_panel_mode;
-                s_set_mode_tick = xTaskGetTickCount();
-            }
-            else if (g_panel_mode == 1) {
-                if (key0 == KEY_CODE_UP)   { g_set_temp += 0.5f; s_set_mode_tick = xTaskGetTickCount(); }
-                if (key0 == KEY_CODE_DOWN) { g_set_temp -= 0.5f; s_set_mode_tick = xTaskGetTickCount(); }
-                if (g_set_temp > 50.0f)  g_set_temp = 50.0f;
-                if (g_set_temp < -50.0f) g_set_temp = -50.0f;
-                Panel_SaveSetTemp();
-            }
-            vTaskDelay(pdMS_TO_TICKS(150));  /* 消抖 */
-        }
-
-        /* ============================================
-         * PANEL1 按键: 除霜 / 照明 / 点检 / 电源
-         * ============================================ */
-        uint8_t key1 = HTC2K_ReadKeys1();
-
-        if (key1 != 0x00 && key1 != 0xFF) {
-            /* 诊断: 无论读到什么码值, 先切一下照明继电器听响
-             * 确认 PANEL1 按键扫描是否能读到数据 (调试后删除) */
-            g_light_on = !g_light_on;
-            BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
-
-            if (key1 == KEY_CODE_DEFROST) {
-                g_defrost_req = 1;
-                BSP_RS485_SendString("[KEY] DEFROST req\r\n");
-            }
-            else if (key1 == KEY_CODE_LIGHT) {
-                g_light_on = !g_light_on;
-                BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
-            }
-            else if (key1 == KEY_CODE_INSPECT) {
-                /* 点检键: 预留 */
-            }
-            else if (key1 == KEY_CODE_POWER) {
+                /* 按键1: 电源 ON/OFF */
                 g_system_on = !g_system_on;
                 if (g_system_on) {
                     BSP_RS485_SendString("[KEY] Power ON req\r\n");
@@ -199,6 +144,40 @@ void Task_Panel_Process(void const *argument)
                     BSP_RS485_SendString("[KEY] Power OFF req\r\n");
                 }
             }
+            else if (key0 == KEY_CODE_DOWN) {
+                /* 按键2: 除霜 */
+                g_defrost_req = 1;
+                BSP_RS485_SendString("[KEY] DEFROST req\r\n");
+            }
+            else if (key0 == KEY_CODE_UP) {
+                if (g_panel_mode == 1) {
+                    /* 设置模式: ↑ 调温 +0.5℃ */
+                    g_set_temp += 0.5f;
+                    if (g_set_temp > 50.0f) g_set_temp = 50.0f;
+                    s_set_mode_tick = xTaskGetTickCount();
+                    Panel_SaveSetTemp();
+                } else {
+                    /* 正常模式: 照明开关 */
+                    g_light_on = !g_light_on;
+                    BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
+                }
+            }
+            else if (key0 == KEY_CODE_SET) {
+                /* 按键4: Set 进/出设置模式 */
+                if (g_panel_mode == 1) {
+                    /* 退出设置模式时当做 ↓ 调温 -0.5℃ 再退出,
+                     * 长按效果: Set进入 → Up加温 → Set减温并退出 */
+                    g_set_temp -= 0.5f;
+                    if (g_set_temp < -50.0f) g_set_temp = -50.0f;
+                    Panel_SaveSetTemp();
+                    g_panel_mode = 0;
+                } else {
+                    /* 进入设置模式 */
+                    g_panel_mode = 1;
+                    s_set_mode_tick = xTaskGetTickCount();
+                }
+            }
+
             vTaskDelay(pdMS_TO_TICKS(150));  /* 消抖 */
         }
 
