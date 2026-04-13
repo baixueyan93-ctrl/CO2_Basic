@@ -147,7 +147,7 @@ void Task_Panel_Process(void const *argument)
                 Panel_SaveSetTemp();  /* 每次调温后保存到EEPROM */
             }
             /* 简化版: 正常模式下的上/下键屏蔽, 避免误操作变频板 */
-            vTaskDelay(pdMS_TO_TICKS(80));  /* 消抖 */
+            vTaskDelay(pdMS_TO_TICKS(150));  /* 消抖 */
         }
 
         /* ============================================
@@ -185,7 +185,7 @@ void Task_Panel_Process(void const *argument)
                     BSP_RS485_SendString("[KEY] Power OFF req\r\n");
                 }
             }
-            vTaskDelay(pdMS_TO_TICKS(80));  /* 消抖 */
+            vTaskDelay(pdMS_TO_TICKS(150));  /* 消抖 */
         }
 
         /* 5秒无操作自动退出设置模式 */
@@ -196,7 +196,7 @@ void Task_Panel_Process(void const *argument)
             }
         }
 
-        /* 任务休眠 20ms */
-        vTaskDelay(pdMS_TO_TICKS(20));
+        /* 任务休眠 50ms */
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
