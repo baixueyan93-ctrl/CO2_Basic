@@ -125,8 +125,9 @@ void MX_FREERTOS_Init(void) {
   BSP_I2C1_MutexInit();  /* 优先初始化硬件互斥锁 */
   BSP_Relay_Init();      /* 继电器GPIO初始化, 上电默认全部OFF */
   /* BSP_Inverter_Init() 已由 main.c 在 MX_UART4_Init() 之后调用 */
-  BSP_EXV_Init();        /* 膨胀阀GPIO初始化 */
-  BSP_EXV_ResetToZero(); /* 膨胀阀 560 步无记忆冷启动归零 */
+  BSP_EXV_Init();        /* 膨胀阀GPIO初始化 (仅配置GPIO, 不涉及延时) */
+  /* BSP_EXV_ResetToZero() 移至 Task_SimpleMain 内部执行,
+   * 因为 vTaskDelay() 需要调度器已启动才能正常工作 */
   SysState_Init();       /* 在任务启动前初始化全局变量和系统锁 */
   /* USER CODE END RTOS_MUTEX */
 
