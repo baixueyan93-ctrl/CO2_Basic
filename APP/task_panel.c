@@ -76,7 +76,30 @@ void Task_Panel_Process(void const *argument)
     /* 从EEPROM读取上次设定温度, 读不到则保持默认 SET_TEMP_TS */
     Panel_LoadSetTemp();
 
+    /* ============ PANEL1 最小化隔离测试 (调试后删除) ============
+     * 只读 PANEL1 按键, 不刷屏不干别的.
+     * 读到任何非 0x00/0xFF 的值 → 切照明继电器 (咔哒响)
+     * 同时把读到的值显示在 PANEL0 屏幕上.
+     * ==========================================================*/
     for (;;) {
+        uint8_t raw = HTC2K_ReadKeys1();
+
+        if (raw != 0x00 && raw != 0xFF) {
+            /* 听到咔哒 = 读到了 */
+            g_light_on = !g_light_on;
+            BSP_Relay_Set(RELAY_LIGHT, g_light_on ? 1 : 0);
+            /* 在左屏显示读到的原始码值 */
+            HTC2K_ShowTemp((float)raw);
+            vTaskDelay(pdMS_TO_TICKS(500));
+        }
+
+        /* 没读到时, 左屏显示 88.8 表示正在扫描 */
+        HTC2K_ShowTemp(88.8f);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
+    /* ============ 正常代码 (测试完成后恢复此行上面的 for 循环) ============ */
+    for (;;) { /* 正常代码不会执行到这里 */
         /* 读取系统状态 */
         SysVarData_t sensor;
         SysState_GetSensor(&sensor);
