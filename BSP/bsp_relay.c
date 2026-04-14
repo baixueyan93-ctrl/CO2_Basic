@@ -34,9 +34,9 @@ void BSP_Relay_Init(void)
     gpio.Pull  = GPIO_NOPULL;
     gpio.Speed = GPIO_SPEED_FREQ_LOW;
 
-    /* 先把所有引脚拉高 (OFF), 再配置为输出 — 防止上电瞬间误动作 */
+    /* 先把所有引脚拉低 (OFF), 再配置为输出 — 防止上电瞬间误动作 */
     for (int i = 0; i < RELAY_COUNT; i++) {
-        HAL_GPIO_WritePin(relay_map[i].port, relay_map[i].pin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(relay_map[i].port, relay_map[i].pin, GPIO_PIN_RESET);
     }
 
     /* PC6, PC7, PC8, PC9 */
@@ -54,13 +54,13 @@ void BSP_Relay_Init(void)
 void BSP_Relay_On(Relay_ID id)
 {
     if (id >= RELAY_COUNT) return;
-    HAL_GPIO_WritePin(relay_map[id].port, relay_map[id].pin, GPIO_PIN_RESET); /* LOW = ON */
+    HAL_GPIO_WritePin(relay_map[id].port, relay_map[id].pin, GPIO_PIN_SET);   /* HIGH = ON */
 }
 
 void BSP_Relay_Off(Relay_ID id)
 {
     if (id >= RELAY_COUNT) return;
-    HAL_GPIO_WritePin(relay_map[id].port, relay_map[id].pin, GPIO_PIN_SET);   /* HIGH = OFF */
+    HAL_GPIO_WritePin(relay_map[id].port, relay_map[id].pin, GPIO_PIN_RESET); /* LOW = OFF */
 }
 
 void BSP_Relay_Set(Relay_ID id, uint8_t on)
@@ -72,8 +72,8 @@ void BSP_Relay_Set(Relay_ID id, uint8_t on)
 uint8_t BSP_Relay_GetState(Relay_ID id)
 {
     if (id >= RELAY_COUNT) return 0;
-    /* LOW = ON → 返回1;  HIGH = OFF → 返回0 */
-    return (HAL_GPIO_ReadPin(relay_map[id].port, relay_map[id].pin) == GPIO_PIN_RESET) ? 1 : 0;
+    /* HIGH = ON → 返回1;  LOW = OFF → 返回0 */
+    return (HAL_GPIO_ReadPin(relay_map[id].port, relay_map[id].pin) == GPIO_PIN_SET) ? 1 : 0;
 }
 
 void BSP_Relay_AllOff(void)

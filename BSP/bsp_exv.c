@@ -55,20 +55,20 @@ static const uint8_t PHASE_TABLE[8][4] = {
 
 /* ------------------------------------------------------------------
  * exv_set_phase - 输出指定相序到 GPIO
- * 硬件极性: 表中1(通电) → GPIO LOW,  表中0(断电) → GPIO HIGH
+ * 硬件极性: 表中1(通电) → GPIO HIGH,  表中0(断电) → GPIO LOW
  * ------------------------------------------------------------------ */
 static void exv_set_phase(uint8_t phase_idx)
 {
     const uint8_t *ph = PHASE_TABLE[phase_idx & 0x07];
 
     HAL_GPIO_WritePin(EXV0_PM0A_PORT, EXV0_PM0A_PIN,
-                      ph[0] ? GPIO_PIN_RESET : GPIO_PIN_SET);
+                      ph[0] ? GPIO_PIN_SET : GPIO_PIN_RESET);
     HAL_GPIO_WritePin(EXV0_PM0B_PORT, EXV0_PM0B_PIN,
-                      ph[1] ? GPIO_PIN_RESET : GPIO_PIN_SET);
+                      ph[1] ? GPIO_PIN_SET : GPIO_PIN_RESET);
     HAL_GPIO_WritePin(EXV0_PM0C_PORT, EXV0_PM0C_PIN,
-                      ph[2] ? GPIO_PIN_RESET : GPIO_PIN_SET);
+                      ph[2] ? GPIO_PIN_SET : GPIO_PIN_RESET);
     HAL_GPIO_WritePin(EXV0_PM0D_PORT, EXV0_PM0D_PIN,
-                      ph[3] ? GPIO_PIN_RESET : GPIO_PIN_SET);
+                      ph[3] ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
 /* ===================================================================
@@ -80,10 +80,10 @@ void BSP_EXV_Init(void)
 
     __HAL_RCC_GPIOD_CLK_ENABLE();
 
-    /* 所有引脚先拉高 (断电: GPIO HIGH = 线圈断电) */
+    /* 所有引脚先拉低 (断电: GPIO LOW = 线圈断电) */
     HAL_GPIO_WritePin(GPIOD,
         EXV0_PM0A_PIN | EXV0_PM0B_PIN | EXV0_PM0C_PIN | EXV0_PM0D_PIN,
-        GPIO_PIN_SET);
+        GPIO_PIN_RESET);
 
     /* 配置 PD8, PD9, PD10, PD11 为推挽输出 */
     GPIO_InitStruct.Pin   = EXV0_PM0A_PIN | EXV0_PM0B_PIN |
@@ -105,10 +105,10 @@ void BSP_EXV_Init(void)
  * =================================================================== */
 void BSP_EXV_DeEnergize(void)
 {
-    /* GPIO HIGH = 线圈断电 (ULN2803A 截止, 无电流流过) */
+    /* GPIO LOW = 线圈断电 (光耦导通拉低 ULN2803A 输入, 通道截止) */
     HAL_GPIO_WritePin(GPIOD,
         EXV0_PM0A_PIN | EXV0_PM0B_PIN | EXV0_PM0C_PIN | EXV0_PM0D_PIN,
-        GPIO_PIN_SET);
+        GPIO_PIN_RESET);
 }
 
 /* ===================================================================
